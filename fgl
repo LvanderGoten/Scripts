@@ -1,0 +1,2 @@
+#! /bin/sh
+echo $1 | tr a-z A-Z | figlet | awk '{print "# " $0}'

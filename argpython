@@ -1,0 +1,33 @@
+#! /bin/sh
+# Dependencies: python, jq, sd, ripgrep
+[[ $# -eq 0 ]] && echo "File to-be-executed was not specified! Aborting.." && exit 1
+
+# Get run configuration
+[[ -z "$PYTHONPATH" ]] && echo "Not possible to find 'PYTHONPATH'. Aborting..." && exit 1
+echo "PYTHONPATH=$PYTHONPATH"
+
+# Subtract 'PYTHONPATH' from path of file to-be-executed
+PY_FILE_ID=$(echo $1 | sd "^$PYTHONPATH" '' | sd '^/' '')
+
+RUN_CONFIG_PATH=$(echo "$PYTHONPATH/run_config.json" | sd '/+' '/')
+[[ ! -f "$RUN_CONFIG_PATH" ]] && echo  "Run configuration '$RUN_CONFIG_PATH' does not exist! Aborting.." && exit 1
+echo "RUN_CONFIG_PATH=$RUN_CONFIG_PATH"
+
+# Show available run configurations
+printf "AVAILABLE_RUN_CONFIGS="
+AVAILABLE_RUN_CONFIGS=$(jq 'keys[]' $RUN_CONFIG_PATH | sd '"' '' | awk 'BEGIN {print "{"}; {print "\t", $0}; END {print "}"}')
+echo $AVAILABLE_RUN_CONFIGS | rg "$PY_FILE_ID" || (echo -e "\nRun configuration is not available! Aborting.." && exit 1)
+
+# Compile CLI arguments
+PY_FILE_PATH=$(echo "$PYTHONPATH/$PY_FILE_ID" | sd '/+' '/')
+[[ ! -f "$PY_FILE_PATH" ]] && echo "Python file does not exist! Aborting.." && exit 1
+PY_RUN_CONFIG=$(jq ".[\"$PY_FILE_ID\"]" $RUN_CONFIG_PATH)
+PY_ARGS=$(echo $PY_RUN_CONFIG | sd '[\{\}]' '' | sd '[":,]' '' | sd '\n' '' | sd ' +' ' ' | sd '\~' $HOME)
+printf "RUN_CONFIG="
+echo $PY_RUN_CONFIG | jq
+
+# Execute
+SEP=$(yes '_' | head -n 80 | sd '\n' '')
+echo $SEP
+python $PY_FILE_PATH $PY_ARGS
+echo $SEP
