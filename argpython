@@ -26,8 +26,18 @@ PY_ARGS=$(echo $PY_RUN_CONFIG | sd '[\{\}]' '' | sd '[":,]' '' | sd '\n' '' | sd
 printf "RUN_CONFIG="
 echo $PY_RUN_CONFIG | jq
 
+# Debug mode
+DEBUG_MODE=$([[ (-n "$2") ]] && [[ "$2" == "--debug" ]] && echo 1)
+echo "DEBUG_MODE=$DEBUG_MODE"
+DEBUG_PREFIX=$([[ "$DEBUG_MODE" ]] && echo "-m pdb")
+echo "DEBUG_PREFIX=$DEBUG_PREFIX"
+[[ "$DEBUG_MODE" ]] || export PYTHONBREAKPOINT=0
+
 # Execute
-SEP=$(yes '_' | head -n 80 | sd '\n' '')
-echo $SEP
-python $PY_FILE_PATH $PY_ARGS
+EXEC_MODE=$([[ $DEBUG_MODE ]] && echo "PDB" || echo "PYTHON")
+echo "EXEC_MODE=$EXEC_MODE"
+SEP=$(yes '-' | head -n 80 | sd '\n' '')
+echo $SEP | awk -vFS='' -vOFS='' -vLANG="$EXEC_MODE" 'BEGIN {LANG="["LANG"]"; half_lang_len = int(length(LANG)/2)}; {mid=int((NF+1)/2); lo=mid-half_lang_len; hi=mid+half_lang_len; for (i = lo; i < hi; i++) $i=substr(LANG, i-lo+1, 1)} 1'
+
+python $DEBUG_PREFIX $PY_FILE_PATH $PY_ARGS
 echo $SEP
